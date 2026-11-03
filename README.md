@@ -32,7 +32,7 @@ make dev-down
 | `dev-up` | Build and start Postgres, backend, and frontend in the background |
 | `dev-down` | Stop the dev stack |
 | `test` | Run backend tests against an ephemeral Postgres, then frontend tests, and remove the test stack |
-| `prod-up` | Build and start the production images. Nginx serves the frontend on port 8080 and proxies `/api`, `/health`, and `/ready` |
+| `prod-up` | Build and start the production images. A one-shot migrate service applies Prisma migrations, then Nginx serves the frontend on port 8080 and proxies `/api`, `/health`, and `/ready` |
 | `prod-down` | Stop the production stack |
 | `logs` | Follow dev stack logs |
 | `migrate` | Run `prisma migrate deploy` in the dev backend container |
