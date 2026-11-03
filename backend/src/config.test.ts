@@ -7,6 +7,7 @@ const validEnv = {
   PORT: "3000",
   DATABASE_URL: "postgresql://splitpot:splitpot@db:5432/splitpot_test",
   FRONTEND_ORIGIN: "http://localhost:5173",
+  JWT_SECRET: "test-secret-value",
   LOG_LEVEL: "silent",
 };
 
@@ -16,6 +17,11 @@ describe("loadConfig", () => {
     expect(config.NODE_ENV).toBe("test");
     expect(config.PORT).toBe(3000);
     expect(config.FRONTEND_ORIGIN).toBe("http://localhost:5173");
+    expect(config.AUTH_RATE_LIMIT_MAX).toBe(30);
+  });
+
+  it("rejects a short jwt secret", () => {
+    expect(() => loadConfig({ ...validEnv, JWT_SECRET: "short" })).toThrow(/JWT_SECRET/);
   });
 
   it("rejects a missing database url", () => {

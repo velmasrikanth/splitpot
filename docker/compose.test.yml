@@ -8,4 +8,4 @@ services:
   backend:
     build:
       target: development
-    command: ["npm", "test"]
+    command: ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && npm test"]
