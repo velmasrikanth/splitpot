@@ -1,3 +1,74 @@
 ---
+description: SplitPot project rules - stack, conventions, scope boundaries
 alwaysApply: true
 ---
+
+# SplitPot - Project Rules
+
+SplitPot is a web app for splitting shared expenses for a party or trip:
+members log in, add expenses (who paid, how much, who shares it), and the app
+shows the total cost, who paid how much, and who must pay whom to settle.
+
+## Core principles
+1. **Working code only.** Never leave TODO stubs, fake data, placeholder functions or
+   "implement later" comments in delivered code. If something is out of scope, leave it out.
+2. **Verify before claiming done.** After each phase, actually run the build, the tests and
+   `docker compose up`, and fix failures. Report real command output, not assumptions.
+3. **Everything runs in Docker.** The app (frontend, backend, database) must run only through
+   Docker Compose. No instruction may require installing Node, Postgres, etc. on the host.
+4. **Small, reviewable steps.** Finish and verify one phase before starting the next.
+   Ask before adding any dependency not listed in this file.
+5. **Do not invent scope.** Only build what the prompt/requirements ask for.
+
+## Stack (fixed - do not substitute)
+- Monorepo: `frontend/`, `backend/`, `docker/` (compose + env), `scripts/`
+- Backend: Node 22 LTS, TypeScript (strict), Fastify, Prisma ORM, PostgreSQL 16, Zod for validation,
+  argon2 for password hashing, JWT in an httpOnly, SameSite=Lax cookie
+- Frontend: React 18 + TypeScript + Vite, Tailwind CSS, React Router, TanStack Query,
+  react-hook-form + Zod, lucide-react icons
+- Tests: Vitest (backend + frontend), Supertest-style integration tests against a real Postgres container
+- Package manager: npm (commit lockfiles). Pin major versions. No `latest` tags in Dockerfiles.
+
+## Money rules (critical)
+- Store and compute ALL money as **integers in minor units** (paise/cents). Never use floats for money.
+- Convert to a decimal string only at the UI edge.
+- Splits must always sum EXACTLY to the expense amount. Distribute remainder minor units
+  deterministically (by member id order).
+- Settlement algorithm lives in a pure function (`backend/src/domain/settlement.ts`) with no I/O,
+  and has thorough unit tests (equal, uneven, rounding, already settled, one person owes all, 10+ members).
+
+## Code conventions
+- TypeScript `strict: true`, no `any` without a comment explaining why.
+- Backend layers: `routes -> services -> repositories(Prisma)`; domain logic in `domain/` as pure functions.
+- Validate every request body/query with Zod; return consistent errors:
+  `{ "error": { "code": "STRING", "message": "human readable" } }`
+- Authorization: every group endpoint must verify the caller is a member of that group.
+- Never log secrets, passwords, tokens or full request bodies.
+- Frontend: function components + hooks, one feature per folder under `src/features/`,
+  API calls only via `src/api/` client, no inline fetch in components.
+- Every screen needs loading, empty, and error states. Mobile-first, accessible (labels, focus, contrast).
+
+## Docker & environment rules
+- Environments: `dev`, `test`, `prod`. Config ONLY via environment variables (12-factor).
+  Never hardcode URLs, ports, secrets or DB credentials in source.
+- Compose layout: `docker/compose.base.yml` + `docker/compose.dev.yml` + `docker/compose.test.yml` +
+  `docker/compose.prod.yml`, with `docker/env/.env.dev.example`, `.env.test.example`, `.env.prod.example`.
+  Real `.env.*` files are gitignored; only `.example` files are committed.
+- Dockerfiles: multi-stage, non-root user, small base images, `.dockerignore` present,
+  HEALTHCHECK defined. Dev images use bind mounts + hot reload; prod images are self-contained.
+- Backend exposes `GET /health` (liveness) and `GET /ready` (checks DB) - needed later for Kubernetes probes.
+- Backend logs JSON to stdout. Handles SIGTERM gracefully (needed later for Kubernetes).
+- DB migrations run via `prisma migrate deploy` in a separate one-shot `migrate` service/command,
+  not hidden inside app start-up in prod.
+- A `Makefile` exposes: `dev-up`, `dev-down`, `test`, `prod-up`, `prod-down`, `logs`, `migrate`, `seed-dev`.
+
+## Out of scope for now (DO NOT create)
+- GitHub Actions workflows, Kubernetes manifests, Helm charts, Terraform files.
+  The owner will write these personally. You may create EMPTY placeholder folders with a
+  one-line README: `.github/workflows/`, `k8s/`, `terraform/`.
+- Keep the app stateless and env-driven so those can be added later without code changes.
+
+## Git
+- Conventional commit messages (`feat:`, `fix:`, `chore:`, `test:`, `docs:`).
+- Never commit `.env` files, `node_modules`, build output.
+- Do not push; the owner pushes.

@@ -1,0 +1,11 @@
+name: splitpot-test
+
+services:
+  db:
+    tmpfs:
+      - /var/lib/postgresql/data
+
+  backend:
+    build:
+      target: development
+    command: ["npm", "test"]
