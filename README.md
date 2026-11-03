@@ -1,6 +1,6 @@
 # SplitPot
 
-SplitPot splits shared expenses for a party or a trip. This branch is the Phase 0 scaffold: PostgreSQL, a Fastify backend, and a React page that calls the backend, all through Docker Compose.
+SplitPot splits shared expenses for a party or a trip. The backend API covers accounts, pots, expenses, and settlement. The page in the dev stack is still the health check from the scaffold.
 
 ## Requirements
 
@@ -31,12 +31,12 @@ make dev-down
 | --- | --- |
 | `dev-up` | Build and start Postgres, backend, and frontend in the background |
 | `dev-down` | Stop the dev stack |
-| `test` | Run backend unit tests in a container against an ephemeral Postgres, then remove that stack |
+| `test` | Run backend unit and integration tests in a container against an ephemeral Postgres, then remove that stack |
 | `prod-up` | Build and start the production images. Nginx serves the frontend on port 8080 and proxies `/health` and `/ready` |
 | `prod-down` | Stop the production stack |
 | `logs` | Follow dev stack logs |
-| `migrate` | Run `prisma migrate deploy` in the dev backend container. There are no migrations in this phase |
-| `seed-dev` | Run `npm run seed` in the dev backend container. The seed script arrives with the domain model |
+| `migrate` | Run `prisma migrate deploy` in the dev backend container |
+| `seed-dev` | Load the dev trip (Anu and Ravi, password `password123`, invite code `goa-weekend-dev`) |
 
 ## Environment variables
 
@@ -55,6 +55,10 @@ Set these in `docker/env/.env.dev`, `.env.test`, or `.env.prod`. Examples live n
 | `FRONTEND_ORIGIN` | backend | Only this origin is allowed by CORS |
 | `LOG_LEVEL` | backend | Pino level (`info`, `silent`, …) |
 | `HTTP_PORT` | prod compose | Host port published for Nginx |
+| `JWT_SECRET` | backend | HMAC secret for the session cookie. At least 16 characters |
+| `AUTH_RATE_LIMIT_MAX` | backend | How many auth requests one client may make per window |
+| `AUTH_RATE_LIMIT_WINDOW_MS` | backend | Auth rate-limit window in milliseconds |
+| `SESSION_TTL_SECONDS` | backend | Session cookie lifetime |
 
 Nothing in source hardcodes these values. Do not commit real `.env` files.
 
@@ -70,6 +74,4 @@ k8s/         placeholder (owner adds manifests)
 terraform/   placeholder (owner adds Terraform)
 ```
 
-## Intentionally not in this phase
-
-Authentication, groups, expenses, settlement, and the product UI come next. GitHub Actions, Kubernetes, and Terraform stay empty on purpose.
+The HTTP API is under `/api`. Money is integer minor units. GitHub Actions, Kubernetes, Terraform, and the product screens are still to come.

@@ -1,7 +1,11 @@
 #!/bin/sh
 set -eu
 cd /app
+if [ ! -d node_modules/argon2 ]; then
+  npm ci
+fi
 npx prisma generate
+npx prisma migrate deploy
 npx tsc -p tsconfig.json --pretty false
 
 npx tsc -p tsconfig.json --pretty false --watch --preserveWatchOutput &

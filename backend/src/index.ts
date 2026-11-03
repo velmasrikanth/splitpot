@@ -5,7 +5,8 @@ import { loadConfig } from "./config.js";
 const config = loadConfig();
 const prisma = new PrismaClient();
 const app = await createApp(config, {
-  query: () => prisma.$queryRaw`SELECT 1`,
+  readiness: { query: () => prisma.$queryRaw`SELECT 1` },
+  prisma,
 });
 
 let shuttingDown = false;

@@ -6,6 +6,10 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().min(1),
   FRONTEND_ORIGIN: z.string().url(),
+  JWT_SECRET: z.string().min(16),
+  AUTH_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(30),
+  AUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
+  SESSION_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 24 * 7),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
