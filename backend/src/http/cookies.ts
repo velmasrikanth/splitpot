@@ -1,5 +1,14 @@
 const COOKIE_NAME = "token";
 
+export function cookieIsSecure(nodeEnv: string, forwardedProto: string | string[] | undefined): boolean {
+  if (nodeEnv !== "prod") {
+    return false;
+  }
+  const raw = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto;
+  const proto = raw?.split(",")[0]?.trim().toLowerCase();
+  return proto !== "http";
+}
+
 export function readCookie(header: string | undefined, name = COOKIE_NAME): string | undefined {
   if (!header) {
     return undefined;

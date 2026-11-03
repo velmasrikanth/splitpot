@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { AppConfig } from "../config.js";
-import { clearSessionCookie, readCookie, sessionCookie } from "../http/cookies.js";
+import { clearSessionCookie, cookieIsSecure, readCookie, sessionCookie } from "../http/cookies.js";
 import { AppError } from "../http/errors.js";
 import { verifySession, signSession } from "../http/jwt.js";
 import type { AuthService } from "../services/auth.js";
@@ -26,7 +26,7 @@ export function registerAuthRoutes(
   auth: AuthService,
   allow: (key: string) => boolean,
 ): void {
-  const secure = config.NODE_ENV === "prod";
+  const secureFor = (forwardedProto: string | string[] | undefined) => cookieIsSecure(config.NODE_ENV, forwardedProto);
 
   app.post("/api/auth/signup", async (request, reply) => {
     if (!allow(request.ip || "local")) {
@@ -35,7 +35,7 @@ export function registerAuthRoutes(
     const body = parseInput(signupSchema, request.body);
     const user = await auth.signup(body);
     const token = signSession(user.id, config.JWT_SECRET, config.SESSION_TTL_SECONDS);
-    reply.header("set-cookie", sessionCookie(token, secure, config.SESSION_TTL_SECONDS));
+    reply.header("set-cookie", sessionCookie(token, secureFor(request.headers["x-forwarded-proto"]), config.SESSION_TTL_SECONDS));
     return reply.code(201).send(user);
   });
 
@@ -46,13 +46,13 @@ export function registerAuthRoutes(
     const body = parseInput(loginSchema, request.body);
     const user = await auth.login(body);
     const token = signSession(user.id, config.JWT_SECRET, config.SESSION_TTL_SECONDS);
-    reply.header("set-cookie", sessionCookie(token, secure, config.SESSION_TTL_SECONDS));
+    reply.header("set-cookie", sessionCookie(token, secureFor(request.headers["x-forwarded-proto"]), config.SESSION_TTL_SECONDS));
     return reply.send(user);
   });
 
   app.post("/api/auth/logout", async (request, reply) => {
     await requireUser(config, auth, request.headers.cookie);
-    reply.header("set-cookie", clearSessionCookie(secure));
+    reply.header("set-cookie", clearSessionCookie(secureFor(request.headers["x-forwarded-proto"])));
     return reply.code(204).send();
   });
 
