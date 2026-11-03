@@ -32,7 +32,8 @@ test: docker/env/.env.test
 	docker compose --env-file docker/env/.env.test $(TEST_FILES) up --build --abort-on-container-exit --exit-code-from backend; \
 	status=$$?; \
 	docker compose --env-file docker/env/.env.test $(TEST_FILES) down -v; \
-	exit $$status
+	if [ $$status -ne 0 ]; then exit $$status; fi; \
+	docker compose --env-file docker/env/.env.test $(TEST_FILES) --profile frontend run --rm --build frontend-test
 
 prod-up: docker/env/.env.prod
 	docker compose --env-file docker/env/.env.prod $(PROD_FILES) up --build -d
