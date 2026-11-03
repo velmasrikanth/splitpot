@@ -1,6 +1,6 @@
 # SplitPot
 
-SplitPot splits shared expenses for a party or a trip. The backend API covers accounts, pots, expenses, and settlement. The page in the dev stack is still the health check from the scaffold.
+SplitPot splits shared expenses for a party or a trip. Sign in, open a pot, add expenses, and settle who pays whom. The API and the screens both run through Docker Compose.
 
 ## Requirements
 
@@ -16,7 +16,7 @@ make dev-up
 - Backend health: http://localhost:3000/health
 - Backend readiness (checks the database): http://localhost:3000/ready
 
-The frontend dev server proxies `/health` and `/ready` to the backend. The page shows both results. Source directories are bind-mounted, so edits reload.
+The frontend dev server proxies `/api`, `/health`, and `/ready` to the backend. Source directories are bind-mounted, so edits reload. Seeded login: `anu@example.com` / `password123`.
 
 ```sh
 make logs
@@ -31,8 +31,8 @@ make dev-down
 | --- | --- |
 | `dev-up` | Build and start Postgres, backend, and frontend in the background |
 | `dev-down` | Stop the dev stack |
-| `test` | Run backend unit and integration tests in a container against an ephemeral Postgres, then remove that stack |
-| `prod-up` | Build and start the production images. Nginx serves the frontend on port 8080 and proxies `/health` and `/ready` |
+| `test` | Run backend tests against an ephemeral Postgres, then frontend tests, and remove the test stack |
+| `prod-up` | Build and start the production images. Nginx serves the frontend on port 8080 and proxies `/api`, `/health`, and `/ready` |
 | `prod-down` | Stop the production stack |
 | `logs` | Follow dev stack logs |
 | `migrate` | Run `prisma migrate deploy` in the dev backend container |

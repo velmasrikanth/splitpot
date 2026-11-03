@@ -9,3 +9,12 @@ services:
     build:
       target: development
     command: ["sh", "-c", "npx prisma generate && npx prisma migrate deploy && npm test"]
+
+  frontend-test:
+    profiles: ["frontend"]
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      target: development
+    command: ["npm", "test"]
+    init: true
