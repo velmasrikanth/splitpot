@@ -1,6 +1,6 @@
 # SplitPot
 
-SplitPot splits shared expenses for a party or a trip. Sign in, open a pot, add expenses, and settle who pays whom. The API and the screens both run through Docker Compose. Money is stored and calculated as integer minor units (paise or cents). The screens turn that into a currency string only when displaying it.
+SplitPot splits shared expenses for a party or a trip. Sign in, open a pot, add expenses, and settle who pays whom. The API and the screens both run through Docker Compose. Money is stored and calculated as integer minor units (paise or cents). The screens turn that into a currency string only when displaying it. Architecture, the stack, and how every test runs are in [docs/architecture.md](docs/architecture.md).
 
 ## Requirements
 
