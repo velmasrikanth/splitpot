@@ -24,6 +24,13 @@ COPY prisma ./prisma
 COPY src ./src
 RUN npx prisma generate && npx tsc -p tsconfig.json --pretty false
 
+FROM build AS migrate
+RUN groupadd --gid 1001 app \
+  && useradd --uid 1001 --gid app --create-home --shell /usr/sbin/nologin app \
+  && chown -R app:app /app
+USER app
+CMD ["npx", "prisma", "migrate", "deploy"]
+
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=prod
