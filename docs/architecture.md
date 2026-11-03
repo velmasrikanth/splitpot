@@ -183,6 +183,180 @@ Production migration is a separate container (`Dockerfile` target `migrate`). It
 
 Variables are listed in the root [README](../README.md). The API also reads `HOST` and `PORT`, which Compose sets to `0.0.0.0` and `3000`.
 
+## Run it on this Windows laptop
+
+Docker Desktop has to be running. Open PowerShell in the repo root (`C:\Data_Drive\Devops\V-Repos\splitpot`).
+
+```powershell
+make dev-up
+```
+
+Then open http://localhost:5173. The API is http://localhost:3000/health and http://localhost:3000/ready. The first start after a rebuild compiles the API inside the container, so wait until those URLs return `{"status":"ok"}` before refreshing the page.
+
+| Command | What you get |
+| --- | --- |
+| `make dev-up` | Postgres, API, and the Vite app |
+| `make dev-down` | Stops those containers. The database volume stays |
+| `make logs` | Follows container logs. Ctrl+C leaves the stack running |
+| `make seed-dev` | Anu and Ravi, password `password123`, invite `goa-weekend-dev` |
+| `make test` | Backend tests, then frontend tests |
+| `make prod-up` | Production images on http://localhost:8080 |
+| `make prod-down` | Stops the production stack |
+
+`make` is `C:\Program Files\Vagrant\embedded\usr\bin\make.exe`. Vagrant's own `bin` folder is on the system PATH, and that folder does not contain `make`. The `usr\bin` folder has to be on the user PATH as well. After adding it, close the terminal and open a new one. An already open terminal keeps the old PATH, so it still says `make` is not recognized.
+
+`make dev-down` can also print this and still stop the containers:
+
+```text
+bash.exe: warning: could not find /tmp, please create!
+```
+
+Vagrant's Make shells out to Git Bash, and that Bash looks for a Unix `/tmp`. The recipe after the warning is what matters. `make dev-up` prints the same line, then builds and starts the stack.
+
+If `make` is not on `PATH`:
+
+```powershell
+& "C:\Program Files\Vagrant\embedded\usr\bin\make.exe" dev-up
+& "C:\Program Files\Vagrant\embedded\usr\bin\make.exe" dev-down
+```
+
+## Run and test on a Linux server
+
+This is the same app with the host's Docker engine instead of Docker Desktop. Install Docker Engine and the Compose plugin (`docker compose version` must work). `make` is optional. GNU Make from the distro (`sudo apt install make` on Debian or Ubuntu) runs the Makefile with no `/tmp` warning. You can also call Compose yourself. Nothing else is installed on the server: no Node, no Postgres.
+
+Clone the repo on the server and work from that directory.
+
+### Dev stack
+
+Use this when you want hot reload and a published API port. It bind-mounts the source, so the server needs the git checkout, not only images.
+
+```sh
+cp -n docker/env/.env.dev.example docker/env/.env.dev
+docker compose --env-file docker/env/.env.dev \
+  -f docker/compose.base.yml -f docker/compose.dev.yml \
+  up --build -d
+```
+
+`cp -n` does not overwrite an env file you already edited. Check:
+
+```sh
+docker compose --env-file docker/env/.env.dev \
+  -f docker/compose.base.yml -f docker/compose.dev.yml ps
+curl -sS http://127.0.0.1:3000/health
+curl -sS http://127.0.0.1:3000/ready
+curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:5173/
+```
+
+`/health` and `/ready` return `{"status":"ok"}`. The page returns `200`. From another machine, open `http://SERVER:5173` only after `FRONTEND_ORIGIN` in `.env.dev` is that exact origin. CORS rejects every other origin. Stop with:
+
+```sh
+docker compose --env-file docker/env/.env.dev \
+  -f docker/compose.base.yml -f docker/compose.dev.yml down
+```
+
+`make dev-up` and `make dev-down` are those two commands.
+
+### Tests
+
+The test stack is disposable. Postgres data is a tmpfs, and `down -v` removes it. Run this on the Linux server the same way as on the laptop. The exit code is the test result.
+
+```sh
+cp -n docker/env/.env.test.example docker/env/.env.test
+docker compose --env-file docker/env/.env.test \
+  -f docker/compose.base.yml -f docker/compose.test.yml \
+  up --build --abort-on-container-exit --exit-code-from backend
+status=$?
+docker compose --env-file docker/env/.env.test \
+  -f docker/compose.base.yml -f docker/compose.test.yml down -v
+test $status -eq 0
+docker compose --env-file docker/env/.env.test \
+  -f docker/compose.base.yml -f docker/compose.test.yml \
+  --profile frontend run --rm --build frontend-test
+```
+
+The first Compose command builds the API image, starts Postgres, applies `backend/prisma/migrations`, and runs `npm test`. You should see 33 backend tests pass and the backend container exit 0. The second command builds the frontend image and runs 8 Vitest tests. `make test` is this sequence. The frontend service uses a Compose profile so it does not start during the API run and steal the exit code.
+
+### Production-shaped stack
+
+This is the one to practice on a server. Images are self-contained. Source is not mounted. Nginx is the only published port.
+
+```sh
+cp -n docker/env/.env.prod.example docker/env/.env.prod
+```
+
+Edit `docker/env/.env.prod` before the first start:
+
+- `POSTGRES_PASSWORD` and the password inside `DATABASE_URL` must match, and must not stay `change-me` on a shared server.
+- `JWT_SECRET` must be at least 16 characters and must not stay `change-me-prod-secret`.
+- `FRONTEND_ORIGIN` must be the URL you type in the browser, for example `http://203.0.113.10:8080`. `localhost` is wrong when you open the app from another machine.
+- `HTTP_PORT` is the host port mapped to Nginx's 8080.
+
+```sh
+docker compose --env-file docker/env/.env.prod \
+  -f docker/compose.base.yml -f docker/compose.prod.yml \
+  up --build -d
+```
+
+What comes up, in order:
+
+1. `db` — `postgres:16-alpine`, data on the named volume `pgdata`.
+2. `migrate` — backend image target `migrate`, user `app`, runs `prisma migrate deploy`, exits 0. It does not stay running.
+3. `backend` — backend image target `runtime`, user `app`, starts only after migrate succeeded. No host port. Other containers reach it as `backend:3000`.
+4. `frontend` — Nginx unprivileged image, host `HTTP_PORT` to container 8080. It proxies `/api/`, `/health`, and `/ready` to `http://backend:3000`.
+
+Checks:
+
+```sh
+docker compose --env-file docker/env/.env.prod \
+  -f docker/compose.base.yml -f docker/compose.prod.yml ps
+docker logs splitpot-prod-migrate-1
+curl -sS http://127.0.0.1:8080/health
+curl -sS http://127.0.0.1:8080/ready
+curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8080/
+docker inspect --format '{{.Config.User}}' splitpot-prod-backend-1
+```
+
+Migrate logs end with `All migrations have been successfully applied.` Health and ready return ok. The page returns 200. The API user is `app`. Sign up in the browser at `http://SERVER:8080` and add an expense. That proves the cookie and the `/api` proxy, not only the probes.
+
+Graceful shutdown, the same signal Kubernetes sends:
+
+```sh
+docker kill --signal=SIGTERM splitpot-prod-backend-1
+docker logs splitpot-prod-backend-1 --tail 5
+```
+
+The log line is `shutting down` and the exit code is 0. Compose restarts the API because `restart: unless-stopped` is set. Stop the whole stack with `down`. Add `-v` only when you mean to delete `pgdata`.
+
+```sh
+docker compose --env-file docker/env/.env.prod \
+  -f docker/compose.base.yml -f docker/compose.prod.yml down
+```
+
+`make prod-up` and `make prod-down` are those commands. On Linux they behave the same as on the laptop.
+
+## What maps to Kubernetes
+
+`k8s/` is still only a placeholder README. The manifests are left for you to write as practice. The running shape is already fixed by Compose, so a cluster uses the same images and the same environment variables.
+
+| Compose service | Kubernetes object | Notes |
+| --- | --- | --- |
+| `db` | StatefulSet or Deployment, Service `db:5432`, PersistentVolumeClaim | Same `postgres:16-alpine`. Put the password in a Secret. The volume replaces `pgdata` |
+| `migrate` | Job, `restartPolicy: Never` | Image target `migrate`, command `npx prisma migrate deploy`. The API must not start until this Job succeeds |
+| `backend` | Deployment, ClusterIP Service named `backend` port 3000 | Non-root. Liveness `GET /health`. Readiness `GET /ready`. No public port. `terminationGracePeriodSeconds` at least 20 so `SIGTERM` can finish |
+| `frontend` | Deployment, Service NodePort or LoadBalancer port 8080 | Nginx image. The config calls `http://backend:3000`, so the API Service has to be named `backend` unless you change `frontend/nginx.conf` |
+
+Build and push the two runtime images from the Linux server (or from CI later):
+
+```sh
+docker build -f backend/Dockerfile --target runtime -t your-registry/splitpot-api:0.1.0 backend
+docker build -f backend/Dockerfile --target migrate -t your-registry/splitpot-migrate:0.1.0 backend
+docker build -f frontend/Dockerfile --target runtime -t your-registry/splitpot-web:0.1.0 frontend
+```
+
+The API Deployment gets `NODE_ENV=prod`, `DATABASE_URL` with host `db`, `FRONTEND_ORIGIN` set to the URL users open, and a real `JWT_SECRET`. Logs are already JSON on stdout. Put TLS on the ingress. Nginx sets `X-Forwarded-Proto` from its own scheme, so the session cookie is `Secure` only when Nginx itself sees HTTPS. An ingress that terminates TLS and forwards HTTP will leave the cookie non-Secure until Nginx is changed to trust the ingress header.
+
+No Helm chart and no Terraform are in the repo. Those are the next practice pieces, after a manifest you wrote brings up `/health`, `/ready`, and a signup on the cluster.
+
 ## How to test
 
 Docker must be running. From the repo root:
@@ -260,4 +434,4 @@ Reload the editor window afterward. Do not commit `node_modules`. The container 
 
 ## Left outside this repo
 
-`.github/workflows/`, `k8s/`, and `terraform/` each contain a one-line note and nothing else. The API is stateless, configured only by environment variables, and already exposes `/health`, `/ready`, JSON logs, and `SIGTERM` handling so those can be added later without changing application code.
+`.github/workflows/`, `k8s/`, and `terraform/` each contain a one-line note and nothing else. The section above is the map for writing those yourself. The API is stateless, configured only by environment variables, and already exposes `/health`, `/ready`, JSON logs, and `SIGTERM` handling so a workflow, a chart, or Terraform can wrap it without application changes.

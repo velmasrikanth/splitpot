@@ -4,9 +4,27 @@ SplitPot splits shared expenses for a party or a trip. Sign in, open a pot, add 
 
 ## Requirements
 
-Docker with Compose v2, and `make`. On Windows, `make` can be [ezwinports make](https://github.com/ezwinports/make) and the Makefile uses Git Bash (`C:\Program Files\Git\bin\bash.exe`). Node and PostgreSQL are not installed on the host.
+Docker with Compose v2, and `make`. Node and PostgreSQL are not installed on the host.
+
+On this Windows laptop, Vagrant 2.4.7 is installed. `vagrant` is on PATH, but `make.exe` is not. It lives in `C:\Program Files\Vagrant\embedded\usr\bin`. Add that folder to the user PATH, then open a new terminal:
+
+```powershell
+$makeDir = 'C:\Program Files\Vagrant\embedded\usr\bin'
+$userPath = [Environment]::GetEnvironmentVariable('Path','User')
+[Environment]::SetEnvironmentVariable('Path', "$userPath;$makeDir", 'User')
+```
+
+That folder was added on this machine. Close the terminal and open a new one before typing `make`. If Make still prints `bash.exe: warning: could not find /tmp, please create!`, create `C:\Program Files\Vagrant\embedded\tmp` from an Administrator PowerShell. The warning does not stop the command. If `make` is still not recognized, call it by full path:
+
+```powershell
+& "C:\Program Files\Vagrant\embedded\usr\bin\make.exe" dev-up
+```
+
+On a Linux server, `make` from the distro is enough. The same targets work there. A full Linux, Docker, and Kubernetes practice guide is in [docs/architecture.md](docs/architecture.md).
 
 ## Run the dev stack
+
+From the repo root, with Docker Desktop (or the Docker engine) running:
 
 ```sh
 make dev-up
