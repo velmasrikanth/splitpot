@@ -183,46 +183,9 @@ Production migration is a separate container (`Dockerfile` target `migrate`). It
 
 Variables are listed in the root [README](../README.md). The API also reads `HOST` and `PORT`, which Compose sets to `0.0.0.0` and `3000`.
 
-## Run it on this Windows laptop
-
-Docker Desktop has to be running. Open PowerShell in the repo root (`C:\Data_Drive\Devops\V-Repos\splitpot`).
-
-```powershell
-make dev-up
-```
-
-Then open http://localhost:5173. The API is http://localhost:3000/health and http://localhost:3000/ready. The first start after a rebuild compiles the API inside the container, so wait until those URLs return `{"status":"ok"}` before refreshing the page.
-
-| Command | What you get |
-| --- | --- |
-| `make dev-up` | Postgres, API, and the Vite app |
-| `make dev-down` | Stops those containers. The database volume stays |
-| `make logs` | Follows container logs. Ctrl+C leaves the stack running |
-| `make seed-dev` | Anu and Ravi, password `password123`, invite `goa-weekend-dev` |
-| `make test` | Backend tests, then frontend tests |
-| `make prod-up` | Production images on http://localhost:8080 |
-| `make prod-down` | Stops the production stack |
-
-`make` is `C:\Program Files\Vagrant\embedded\usr\bin\make.exe`. Vagrant's own `bin` folder is on the system PATH, and that folder does not contain `make`. The `usr\bin` folder has to be on the user PATH as well. After adding it, close the terminal and open a new one. An already open terminal keeps the old PATH, so it still says `make` is not recognized.
-
-`make dev-down` can also print this and still stop the containers:
-
-```text
-bash.exe: warning: could not find /tmp, please create!
-```
-
-Vagrant's Make shells out to Git Bash, and that Bash looks for a Unix `/tmp`. The recipe after the warning is what matters. `make dev-up` prints the same line, then builds and starts the stack.
-
-If `make` is not on `PATH`:
-
-```powershell
-& "C:\Program Files\Vagrant\embedded\usr\bin\make.exe" dev-up
-& "C:\Program Files\Vagrant\embedded\usr\bin\make.exe" dev-down
-```
-
 ## Run and test on a Linux server
 
-This is the same app with the host's Docker engine instead of Docker Desktop. Install Docker Engine and the Compose plugin (`docker compose version` must work). `make` is optional. GNU Make from the distro (`sudo apt install make` on Debian or Ubuntu) runs the Makefile with no `/tmp` warning. You can also call Compose yourself. Nothing else is installed on the server: no Node, no Postgres.
+Install Docker Engine and the Compose plugin (`docker compose version` must work). `make` is optional. GNU Make from the distro runs the Makefile. You can also call Compose yourself. Nothing else is installed on the server: no Node, no Postgres.
 
 Clone the repo on the server and work from that directory.
 
@@ -370,7 +333,7 @@ That is the suite that has to pass. It does two steps and keeps the first failur
 1. `docker compose` project `splitpot-test` starts Postgres on an empty tmpfs, applies `backend/prisma/migrations`, and runs `npm test` in the API image. `--exit-code-from backend` makes the Make status that container's status. The stack is then removed with `down -v`.
 2. If the API tests passed, `docker compose run --rm --build` with profile `frontend` runs `npm test` in the frontend image. That service is not part of the default `up`, so it cannot race the API tests.
 
-No Node or Postgres install is required on the host. `make` on this Windows machine is `C:\Program Files\Vagrant\embedded\usr\bin\make.exe` when `make` is not on `PATH`.
+No Node or Postgres install is required on the host. `make` must be on `PATH`.
 
 ### Backend tests (33)
 
